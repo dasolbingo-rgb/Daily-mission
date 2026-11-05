@@ -88,6 +88,19 @@ h1 { font-size: 22px; margin: 0 0 4px; }
 .foot { text-align: center; color: var(--sub); font-size: 13px; margin-top: 22px; }
 .foot b { color: var(--text); }
 .note { color: var(--sub); font-size: 13px; text-align: center; margin: 4px 0 0; }
+.today { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 13px; color: var(--sub); }
+.today .tt { font-weight: 600; margin-bottom: 4px; }
+.today ul { margin: 0; padding: 0; list-style: none; }
+.today li { padding: 2px 0; word-break: keep-all; }
+.today li::before { content: "✓ "; color: var(--accent); font-weight: 700; }
+.linkbtn { background: none; border: 0; color: var(--sub); text-decoration: underline; font: inherit; font-size: 13px; cursor: pointer; margin-top: 6px; }
+.hist { text-align: left; margin-top: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; }
+.hd { font-weight: 700; font-size: 13px; color: var(--text); margin: 10px 0 4px; }
+.hd:first-child { margin-top: 0; }
+.hrow { font-size: 13px; padding: 2px 0; word-break: keep-all; color: var(--text); }
+.hk { display: inline-block; min-width: 2.2em; font-weight: 700; margin-right: 6px; }
+.hk.draw { color: var(--draw); }
+.hk.write { color: var(--write); }
 </style>
 </head>
 <body>
@@ -204,7 +217,7 @@ var MISSIONS = {
 var KIND_LABEL = { draw: "그림", write: "글" };
 var MODE_LABEL = { short: "가볍게", long: "의욕 있는 날" };
 var MODE_TIME = { short: "2~5분이면 충분해요", long: "15~30분 정도 잡아 보세요" };
-var MAX_SWAPS = 2;
+var MAX_SWAPS = 5;
 var KEY = "daily-mission-v1";
 
 function ymd(d) {
@@ -249,16 +262,32 @@ function pick(kind, card) {
   return pool[idx];
 }
 
+var showHistory = false;
+
+function isDoneToday(kind, text) {
+  return state.log.some(function (x) { return x.d === todayKey && x.k === kind && x.t === text; });
+}
+function removeEntry(kind, text) {
+  for (var i = state.log.length - 1; i >= 0; i--) {
+    var x = state.log[i];
+    if (x.d === todayKey && x.k === kind && x.t === text) { state.log.splice(i, 1); break; }
+  }
+}
+function fmtDate(d) {
+  var p = d.split("-");
+  return parseInt(p[1], 10) + "월 " + parseInt(p[2], 10) + "일";
+}
+
 function render() {
   var wrap = document.getElementById("cards");
   wrap.innerHTML = "";
   ["draw", "write"].forEach(function (kind) {
     var card = state.cards[kind];
     var text = pick(kind, card);
-    var left = MAX_SWAPS - card.swaps;
+    var isDone = isDoneToday(kind, text);
 
     var el = document.createElement("section");
-    el.className = "card " + kind + (card.done ? " done" : "");
+    el.className = "card " + kind + (isDone ? " done" : "");
 
     var head = document.createElement("div");
     head.className = "card-head";
@@ -274,7 +303,7 @@ function render() {
       b.textContent = MODE_LABEL[m];
       if (card.mode === m) b.className = "on";
       b.onclick = function () {
-        if (card.done || card.mode === m) return;
+        if (card.mode === m) return;
         card.mode = m;
         save(); render();
       };
@@ -298,27 +327,45 @@ function render() {
 
     var ok = document.createElement("button");
     ok.className = "btn main";
-    ok.textContent = card.done ? "완료했어요 ✓" : "했어요";
+    ok.textContent = isDone ? "완료했어요 ✓" : "했어요";
     ok.onclick = function () {
-      card.done = !card.done;
-      state.log = state.log.filter(function (x) { return !(x.d === todayKey && x.k === kind); });
-      if (card.done) state.log.push({ d: todayKey, k: kind });
+      if (isDone) {
+        removeEntry(kind, text);
+      } else {
+        state.log.push({ d: todayKey, k: kind, t: text });
+      }
       save(); render();
     };
     act.appendChild(ok);
 
     var sw = document.createElement("button");
     sw.className = "btn";
-    sw.textContent = "다른 걸로 (" + left + ")";
-    sw.disabled = card.done || left <= 0;
+    sw.textContent = (isDone ? "하나 더" : "다른 걸로") + " (" + (card.swaps + 1) + "/" + MAX_SWAPS + ")";
     sw.onclick = function () {
-      if (card.swaps >= MAX_SWAPS) return;
-      card.swaps += 1;
+      card.swaps = (card.swaps + 1) % MAX_SWAPS;
       save(); render();
     };
     act.appendChild(sw);
-
     el.appendChild(act);
+
+    var todays = state.log.filter(function (x) { return x.d === todayKey && x.k === kind && x.t; });
+    if (todays.length) {
+      var box = document.createElement("div");
+      box.className = "today";
+      var tt = document.createElement("div");
+      tt.className = "tt";
+      tt.textContent = "오늘 한 것 " + todays.length + "개";
+      box.appendChild(tt);
+      var ul = document.createElement("ul");
+      todays.forEach(function (x) {
+        var li = document.createElement("li");
+        li.textContent = x.t;
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+      el.appendChild(box);
+    }
+
     wrap.appendChild(el);
   });
 
@@ -326,10 +373,49 @@ function render() {
   var foot = document.getElementById("foot");
   foot.innerHTML = "";
   if (total > 0) {
-    foot.appendChild(document.createTextNode("지금까지 완료한 미션 "));
-    var b = document.createElement("b");
-    b.textContent = total + "개";
-    foot.appendChild(b);
+    var line = document.createElement("div");
+    line.appendChild(document.createTextNode("지금까지 완료한 미션 "));
+    var bold = document.createElement("b");
+    bold.textContent = total + "개";
+    line.appendChild(bold);
+    foot.appendChild(line);
+
+    var hb = document.createElement("button");
+    hb.className = "linkbtn";
+    hb.textContent = showHistory ? "기록 닫기" : "기록 보기";
+    hb.onclick = function () { showHistory = !showHistory; render(); };
+    foot.appendChild(hb);
+
+    if (showHistory) {
+      var hist = document.createElement("div");
+      hist.className = "hist";
+      var items = state.log.filter(function (x) { return x.t; }).slice().reverse().slice(0, 200);
+      if (!items.length) {
+        var none = document.createElement("div");
+        none.className = "hrow";
+        none.textContent = "아직 자세한 기록이 없어요. 지금부터 쌓여요.";
+        hist.appendChild(none);
+      }
+      var lastD = "";
+      items.forEach(function (x) {
+        if (x.d !== lastD) {
+          var hd = document.createElement("div");
+          hd.className = "hd";
+          hd.textContent = fmtDate(x.d);
+          hist.appendChild(hd);
+          lastD = x.d;
+        }
+        var row = document.createElement("div");
+        row.className = "hrow";
+        var k = document.createElement("span");
+        k.className = "hk " + x.k;
+        k.textContent = KIND_LABEL[x.k] || "";
+        row.appendChild(k);
+        row.appendChild(document.createTextNode(x.t));
+        hist.appendChild(row);
+      });
+      foot.appendChild(hist);
+    }
   }
 }
 
