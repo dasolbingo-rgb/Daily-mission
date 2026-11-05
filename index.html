@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>오늘의 미션</title>
+<style>
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #faf6f0;
+  --card: #ffffff;
+  --text: #2d2926;
+  --sub: #7a716a;
+  --line: #e8e0d6;
+  --draw: #d9774a;
+  --draw-soft: #fbe9df;
+  --write: #4a7fb0;
+  --write-soft: #e4eef7;
+  --done: #5b9a6a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1a18;
+    --card: #272421;
+    --text: #f0ebe4;
+    --sub: #a39a90;
+    --line: #3a3632;
+    --draw: #e8946a;
+    --draw-soft: #3a2a21;
+    --write: #7aa7d3;
+    --write-soft: #212c38;
+    --done: #7cc08c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #1c1a18; --card: #272421; --text: #f0ebe4; --sub: #a39a90; --line: #3a3632;
+  --draw: #e8946a; --draw-soft: #3a2a21; --write: #7aa7d3; --write-soft: #212c38; --done: #7cc08c;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+main { max-width: 520px; margin: 0 auto; padding: 24px 18px 48px; }
+header { margin-bottom: 20px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+.date { color: var(--sub); font-size: 14px; }
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 16px;
+  transition: opacity .2s;
+}
+.card.draw { --accent: var(--draw); --soft: var(--draw-soft); }
+.card.write { --accent: var(--write); --soft: var(--write-soft); }
+.card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.tag { font-weight: 700; color: var(--accent); font-size: 15px; }
+.modes { display: inline-flex; background: var(--soft); border-radius: 999px; padding: 3px; }
+.modes button {
+  border: 0; background: transparent; color: var(--sub);
+  font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.modes button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.mission { font-size: 18px; font-weight: 600; margin: 6px 0 6px; word-break: keep-all; min-height: 56px; }
+.time { font-size: 13px; color: var(--sub); margin-bottom: 14px; }
+.actions { display: flex; gap: 8px; }
+.btn {
+  font: inherit; font-size: 15px; border-radius: 12px; padding: 12px 14px; cursor: pointer;
+  border: 1px solid var(--line); background: transparent; color: var(--sub);
+}
+.btn.main { flex: 1; background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+.btn:disabled { opacity: .4; cursor: default; }
+.card.done .mission { text-decoration: line-through; color: var(--sub); }
+.card.done .btn.main { background: var(--done); border-color: var(--done); }
+.foot { text-align: center; color: var(--sub); font-size: 13px; margin-top: 22px; }
+.foot b { color: var(--text); }
+.note { color: var(--sub); font-size: 13px; text-align: center; margin: 4px 0 0; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>오늘의 미션</h1>
+    <div class="date" id="date"></div>
+  </header>
+  <div id="cards"></div>
+  <p class="note">못 해도 괜찮아요. 내일은 새 미션이 떠요.</p>
+  <div class="foot" id="foot"></div>
+</main>
+
+<script>
+var MISSIONS = {
+  draw: {
+    short: [
+      "내 왼손(또는 오른손)을 3분간 그리기",
+      "표정 3개 그리기: 기쁨, 짜증, 멍함",
+      "지금 눈에 보이는 컵이나 물건 하나 그리기",
+      "동그라미 5개로 사람 자세 5가지 만들기",
+      "놀란 얼굴 그려 보기",
+      "눈 하나만 크게 그리기",
+      "선 하나로 이어서 고양이 그리기 (펜을 떼지 않기)",
+      "손으로 물건 잡은 모습 그리기",
+      "서 있는 사람의 실루엣만 까맣게 칠해서 그리기",
+      "오늘 입은 옷의 주름만 관찰해서 그리기",
+      "의자 하나를 위, 옆, 앞에서 3번 그리기",
+      "머리 모양 3가지 바꿔서 같은 얼굴 그리기",
+      "신발 한 짝 그리기",
+      "상자 모양을 다른 각도로 3개 그리기",
+      "웃는 입 모양 5가지 그리기",
+      "기울어진 서 있는 자세 그리기 (무게중심 느낌만)",
+      "컵 위에 올라간 김, 그림자까지 그리기",
+      "인물의 뒷모습 그리기",
+      "눈 감은 얼굴 그리기",
+      "가게 안의 구석 한 곳을 4칸 만화 컷처럼 작게 그리기",
+      "손가락으로 숫자 1~5 표현한 손 5개 그리기",
+      "아무 선이나 10초 긋고 거기서 무언가 찾아 그리기",
+      "마음에 드는 색 하나만 골라서 낙서하기",
+      "손님 없는 가게의 빈 의자 그리기",
+      "고양이가 자는 모습 그리기",
+      "어깨와 목선만 그리기",
+      "서류를 든 사람 그리기",
+      "바나나나 과일 하나를 그림자까지 그리기",
+      "펜을 바꿔서 지금 아무 낙서나 그리기",
+      "오늘 기분을 도형 하나로 그리기"
+    ],
+    long: [
+      "사람 한 명의 전신 서 있는 모습을 밑그림부터 정리해서 그리기",
+      "같은 인물의 표정 시트 8개 그리기",
+      "인물 둘이 대화하는 장면을 한 컷으로 구도 잡아 그리기",
+      "손 포즈 10개를 연속으로 그리기 (각 2분)",
+      "상상한 장면 하나로 썸네일 스케치 4컷 만들기",
+      "키와 분위기가 다른 두 사람을 나란히 세워 그리기",
+      "카페나 골목 배경 한 장면을 원근감 생각하며 그리기",
+      "한 인물을 3가지 의상으로 그려보기",
+      "그림 하나를 색까지 칠해서 완성하기",
+      "사진이나 실물을 보고 인물 크로키 5장 그리기",
+      "좋아하는 책이나 영화의 분위기를 떠올려 한 장 일러스트로 그리기",
+      "인물의 감정이 드러나는 자세만으로 장면 3개 그리기"
+    ]
+  },
+  write: {
+    short: [
+      "지어낸 인물이 할 법한 대사 한 줄 쓰기",
+      "오늘 가게에서 본 손님 한 명을 3문장으로 묘사하기",
+      "지금 먹고 싶은 음식을 묘사하는 한 줄",
+      "장면 키워드 3개만 적어 보기 (장소, 소리, 냄새)",
+      "짜증 난 사람의 말투로 한 줄 쓰기",
+      "새로운 이야기 아이디어 한 줄 메모하기",
+      "오늘 날씨를 인물 시점에서 한 문장으로 쓰기",
+      "인물이 문을 열고 들어오는 장면을 2문장으로",
+      "대사 없이 행동만으로 감정 표현하기 (2문장)",
+      "인물 한 명이 숨기고 있는 것 하나 적어 보기",
+      "첫 문장만 3가지 버전으로 써 보기",
+      "아침 풍경을 소리만으로 한 문단",
+      "큰 소리가 난 직후의 첫 느낌을 한 줄로",
+      "실수했을 때 속으로 하는 말 한 줄",
+      "무뚝뚝한 사람이 할 법한 한마디 쓰기",
+      "인물이 거짓말하는 대사 한 줄 쓰기",
+      "좋아하는 영화나 책의 장면을 한 문장으로 요약하기",
+      "오늘 있었던 일을 인물 시점에서 3문장으로",
+      "대화문 4줄만 써 보기 (주고받기)",
+      "요즘 머릿속에서 계속 맴도는 생각 한 줄로 적기",
+      "다음이 궁금해지는 마지막 문장 하나 쓰기",
+      "인물의 습관 하나 만들기",
+      "방 안의 물건 하나가 인물을 설명하게 해 보기 (2문장)",
+      "비 오는 날 장면의 첫 문장 쓰기",
+      "인물이 오늘 아침 눈 뜨자마자 한 생각 한 줄",
+      "세상에 이런 게 있다면 궁금한 점 하나 질문으로 적기",
+      "인물 둘의 어색한 침묵을 2문장으로",
+      "제목 후보 5개 빠르게 적기",
+      "한 문장짜리 감사 인사를 인물이 하게 해 보기",
+      "오늘의 한 줄 일기를 소설체로 써 보기"
+    ],
+    long: [
+      "떠오르는 장면 하나를 한 쪽 분량으로 써 보기",
+      "인물 하나의 하루를 아침부터 밤까지 10줄로 쓰기",
+      "대화 장면 하나를 대사만 먼저 쓰고 지문 붙이기",
+      "짧은 이야기 줄거리를 5개 문장으로 만들어 보기",
+      "지어낸 인물의 과거 한 장면을 짧게 써 보기",
+      "오늘 있었던 일을 다른 사람 시점으로 다시 써 보기",
+      "가장 극적인 순간을 키워드로 먼저 구조 잡고 짧게 쓰기",
+      "새 인물의 프로필을 만들고 첫 등장 장면 쓰기",
+      "새 이야기의 첫 페이지만 써 보기",
+      "좋아하는 이야기에서 아쉬운 점 3개 찾아 내 식으로 고쳐 적기",
+      "한 장면을 감각 5가지(시각, 청각, 후각, 촉각, 미각)로 풍부하게 다듬기",
+      "어떤 이야기의 마지막 문장을 미리 상상해서 써 보기"
+    ]
+  }
+};
+
+var KIND_LABEL = { draw: "그림", write: "글" };
+var MODE_LABEL = { short: "가볍게", long: "의욕 있는 날" };
+var MODE_TIME = { short: "2~5분이면 충분해요", long: "15~30분 정도 잡아 보세요" };
+var MAX_SWAPS = 2;
+var KEY = "daily-mission-v1";
+
+function ymd(d) {
+  var m = d.getMonth() + 1, day = d.getDate();
+  return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
+}
+function dayNumber(d) {
+  return Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86400000);
+}
+
+var today = new Date();
+var todayKey = ymd(today);
+var dn = dayNumber(today);
+var state = null;
+
+function load() {
+  var s = null;
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) s = JSON.parse(raw);
+  } catch (e) { s = null; }
+  if (!s || typeof s !== "object") s = { date: "", cards: {}, log: [] };
+  if (!Array.isArray(s.log)) s.log = [];
+  if (s.date !== todayKey) {
+    s.date = todayKey;
+    s.cards = {
+      draw: { mode: "short", swaps: 0, done: false },
+      write: { mode: "short", swaps: 0, done: false }
+    };
+  }
+  return s;
+}
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function pick(kind, card) {
+  var pool = MISSIONS[kind][card.mode];
+  var offset = kind === "draw" ? 0 : 11;
+  var modeShift = card.mode === "long" ? 5 : 0;
+  var idx = (dn + offset + modeShift + card.swaps * 7) % pool.length;
+  return pool[idx];
+}
+
+function render() {
+  var wrap = document.getElementById("cards");
+  wrap.innerHTML = "";
+  ["draw", "write"].forEach(function (kind) {
+    var card = state.cards[kind];
+    var text = pick(kind, card);
+    var left = MAX_SWAPS - card.swaps;
+
+    var el = document.createElement("section");
+    el.className = "card " + kind + (card.done ? " done" : "");
+
+    var head = document.createElement("div");
+    head.className = "card-head";
+    var tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = KIND_LABEL[kind] + " 미션";
+    head.appendChild(tag);
+
+    var modes = document.createElement("div");
+    modes.className = "modes";
+    ["short", "long"].forEach(function (m) {
+      var b = document.createElement("button");
+      b.textContent = MODE_LABEL[m];
+      if (card.mode === m) b.className = "on";
+      b.onclick = function () {
+        if (card.done || card.mode === m) return;
+        card.mode = m;
+        save(); render();
+      };
+      modes.appendChild(b);
+    });
+    head.appendChild(modes);
+    el.appendChild(head);
+
+    var mi = document.createElement("div");
+    mi.className = "mission";
+    mi.textContent = text;
+    el.appendChild(mi);
+
+    var tm = document.createElement("div");
+    tm.className = "time";
+    tm.textContent = MODE_TIME[card.mode];
+    el.appendChild(tm);
+
+    var act = document.createElement("div");
+    act.className = "actions";
+
+    var ok = document.createElement("button");
+    ok.className = "btn main";
+    ok.textContent = card.done ? "완료했어요 ✓" : "했어요";
+    ok.onclick = function () {
+      card.done = !card.done;
+      state.log = state.log.filter(function (x) { return !(x.d === todayKey && x.k === kind); });
+      if (card.done) state.log.push({ d: todayKey, k: kind });
+      save(); render();
+    };
+    act.appendChild(ok);
+
+    var sw = document.createElement("button");
+    sw.className = "btn";
+    sw.textContent = "다른 걸로 (" + left + ")";
+    sw.disabled = card.done || left <= 0;
+    sw.onclick = function () {
+      if (card.swaps >= MAX_SWAPS) return;
+      card.swaps += 1;
+      save(); render();
+    };
+    act.appendChild(sw);
+
+    el.appendChild(act);
+    wrap.appendChild(el);
+  });
+
+  var total = state.log.length;
+  var foot = document.getElementById("foot");
+  foot.innerHTML = "";
+  if (total > 0) {
+    foot.appendChild(document.createTextNode("지금까지 완료한 미션 "));
+    var b = document.createElement("b");
+    b.textContent = total + "개";
+    foot.appendChild(b);
+  }
+}
+
+var wd = ["일", "월", "화", "수", "목", "금", "토"];
+document.getElementById("date").textContent =
+  (today.getMonth() + 1) + "월 " + today.getDate() + "일 " + wd[today.getDay()] + "요일";
+
+state = load();
+save();
+render();
+</script>
+</body>
+</html>
